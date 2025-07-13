@@ -1,4 +1,4 @@
-module add1(
+module fn(
   input  wire [1:0] in,
   output wire [1:0] out
 );

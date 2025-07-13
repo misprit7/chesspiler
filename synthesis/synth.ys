@@ -1,9 +1,9 @@
 # synth.ys
-read_verilog fn.v
+read_verilog sha256.v
 hierarchy -auto-top
 proc; opt
 techmap; opt
 abc -g NAND
-show -format png -prefix output/add1_nand
+# show -format png -prefix output/fn_nand
 write_verilog output/fn_nand.v
 write_json output/fn_nand.json

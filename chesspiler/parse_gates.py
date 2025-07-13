@@ -3,8 +3,8 @@ import json
 from collections import defaultdict
 from pprint import PrettyPrinter
 
-j = json.load(open('fn_nand.json'))
-m = j['modules']['add1']
+j = json.load(open('../synthesis/output/fn_nand.json'))
+m = j['modules']['fn']
 cells = m['cells']
 ports = m['ports']
 
@@ -61,6 +61,52 @@ for c,d in depth.items():
     cols[d].append({'id': raw_id, 'inputs': inp, 'outputs': out})
 
 pp = PrettyPrinter(indent=2)
-for depth in sorted(cols):
-    print(f"Depth {depth}:")
-    pp.pprint(cols[depth])
+for depth_level in sorted(cols):
+    print(f"Depth {depth_level}:")
+    pp.pprint(cols[depth_level])
+
+# Summary statistics
+print("\n" + "="*50)
+print("SUMMARY STATISTICS")
+print("="*50)
+
+# Calculate max depth
+max_depth = max(depth.values()) if depth else 0
+print(f"Max depth: {max_depth}")
+
+# Calculate max inputs/outputs per gate
+max_inputs = 0
+max_outputs = 0
+for c in cells:
+    # Count inputs for this gate
+    num_inputs = sum(len(cells[c]['connections'].get(pin, [])) for pin in ['A', 'B', 'I'])
+    max_inputs = max(max_inputs, num_inputs)
+    
+    # Count outputs for this gate
+    num_outputs = sum(len(cells[c]['connections'].get(pin, [])) for pin in ['Y', 'Q'])
+    max_outputs = max(max_outputs, num_outputs)
+
+print(f"Max inputs per gate: {max_inputs}")
+print(f"Max outputs per gate: {max_outputs}")
+
+# Count total circuit inputs/outputs
+circuit_inputs = 0
+circuit_outputs = 0
+for pname, pinfo in ports.items():
+    if pinfo['direction'] == 'input':
+        circuit_inputs += len(pinfo['bits'])
+    elif pinfo['direction'] == 'output':
+        circuit_outputs += len(pinfo['bits'])
+
+print(f"Total circuit inputs: {circuit_inputs}")
+print(f"Total circuit outputs: {circuit_outputs}")
+
+# Additional stats
+total_gates = len(cells)
+print(f"Total gates: {total_gates}")
+
+# Count gates by depth
+depth_counts = defaultdict(int)
+for d in depth.values():
+    depth_counts[d] += 1
+print(f"Gates by depth: {dict(depth_counts)}")
