@@ -10,15 +10,43 @@ each coordinate (x,y) is either occupied by a piece or empty.
 import json
 from parse_gates import analyze_netlist
 
+class LogicGate:
+    def __init__(self, x, y, width, height, gate_type, input_coords, output_coord):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.gate_type = gate_type  # 'NAND' or 'NOT'
+        self.input_coords = input_coords  # list of (x, y) tuples
+        self.output_coord = output_coord  # (x, y) tuple
+
+    @classmethod
+    def nand(cls, x, y, num_outputs):
+        input_coords = [(x, y), (x+2, y)]
+        output_coord = (x+1, y+2)
+        return cls(x, y, 3, 3, 'NAND', input_coords, output_coord)
+
+    @classmethod
+    def not_(cls, x, y, num_outputs):
+        input_coords = [(x, y)]
+        output_coord = (x+1, y+1)
+        return cls(x, y, 2, 2, 'NOT', input_coords, output_coord)
+
 class ChessCircuit:
     """Manages a chess circuit with board state and gate locations."""
     
-    def __init__(self, json_path, module_name='fn'):
+    def __init__(self, json_path, module_name='fn', min_x=0, max_x=63, min_y=0, max_y=63):
         """Initialize with a netlist JSON file."""
         self.json_path = json_path
         self.module_name = module_name
         self.gate_layers = analyze_netlist(self.json_path, self.module_name, print_details=False)
-        self.board_state = {}
+        self.min_x = min_x
+        self.max_x = max_x
+        self.min_y = min_y
+        self.max_y = max_y
+        self.width = self.max_x - self.min_x + 1
+        self.height = self.max_y - self.min_y + 1
+        self.board_state = [['.' for _ in range(self.height)] for _ in range(self.width)]
         self.gate_locations = {}
         self.generate_circuit()
     
@@ -106,7 +134,8 @@ class ChessCircuit:
         x_spacing = 4
         y_spacing = 4
         self.gate_locations = {}
-        self.board_state = {}
+        # Reset board_state to empty
+        self.board_state = [['.' for _ in range(self.height)] for _ in range(self.width)]
         y_offset = 0
         for depth, layer in enumerate(self.gate_layers):
             x_offset = 0
@@ -124,7 +153,10 @@ class ChessCircuit:
                         'outputs': gate['outputs']
                     }
                     for (x, y), piece in chess_gate['position'].items():
-                        self.board_state[(x, y)] = piece
+                        arr_x = x - self.min_x
+                        arr_y = y - self.min_y
+                        if 0 <= arr_x < self.width and 0 <= arr_y < self.height:
+                            self.board_state[arr_x][arr_y] = piece
                     x_offset += x_spacing
             y_offset += y_spacing
     
@@ -137,10 +169,13 @@ class ChessCircuit:
         print()
         
         # Print the board portion (Y coordinates negated to match infinite chess format)
-        for y in range(0, max_y)[::-1]:
+        for y in range(max_y-1, -1, -1):
             row = ""
             for x in range(max_x):
-                piece = self.board_state.get((x, y), '.')  # Use negated Y coordinate
+                if 0 <= x < self.width and 0 <= y < self.height:
+                    piece = self.board_state[x][y]
+                else:
+                    piece = '.'
                 row += f" {piece} "
             print(f"{y:2d}: {row}")
         
@@ -177,9 +212,11 @@ class ChessCircuit:
         
         # Build the position string
         position_string = "v0;"
-        for (x, y), piece in self.board_state.items():
-            if piece in piece_to_id:
-                position_string += f"{piece_to_id[piece]},{x},{y};"
+        for x in range(self.width):
+            for y in range(self.height):
+                piece = self.board_state[x][y]
+                if piece in piece_to_id:
+                    position_string += f"{piece_to_id[piece]},{x+self.min_x},{y+self.min_y};"
         
         # Save to file
         with open(output_file, 'w') as f:
