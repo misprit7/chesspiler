@@ -46,7 +46,7 @@ class ChessCircuit:
         self.max_y = max_y
         self.width = self.max_x - self.min_x + 1
         self.height = self.max_y - self.min_y + 1
-        self.board_state = [['.' for _ in range(self.height)] for _ in range(self.width)]
+        self.board_state = [['.' for _ in range(self.width)] for _ in range(self.height)]  # board_state[y][x]
         self.gate_locations = {}
         self.generate_circuit()
     
@@ -134,8 +134,9 @@ class ChessCircuit:
         x_spacing = 4
         y_spacing = 4
         self.gate_locations = {}
+        
         # Reset board_state to empty
-        self.board_state = [['.' for _ in range(self.height)] for _ in range(self.width)]
+        self.board_state = [['.' for _ in range(self.width)] for _ in range(self.height)]
         y_offset = 0
         for depth, layer in enumerate(self.gate_layers):
             x_offset = 0
@@ -156,7 +157,7 @@ class ChessCircuit:
                         arr_x = x - self.min_x
                         arr_y = y - self.min_y
                         if 0 <= arr_x < self.width and 0 <= arr_y < self.height:
-                            self.board_state[arr_x][arr_y] = piece
+                            self.board_state[arr_y][arr_x] = piece
                     x_offset += x_spacing
             y_offset += y_spacing
     
@@ -173,7 +174,7 @@ class ChessCircuit:
             row = ""
             for x in range(max_x):
                 if 0 <= x < self.width and 0 <= y < self.height:
-                    piece = self.board_state[x][y]
+                    piece = self.board_state[y][x]
                 else:
                     piece = '.'
                 row += f" {piece} "
@@ -202,19 +203,25 @@ class ChessCircuit:
         """Save the board state in infinite chess format (v0;id,x,y;...)."""
         # Map pieces to template IDs based on editor.js
         piece_to_id = {
-            'P': 0,  # White Pawn (assuming white for now)
+            'P': 0,  # White Pawn
+            'p': 1,  # Black Pawn
             'R': 2,  # White Rook
+            'r': 3,  # Black Rook
             'N': 4,  # White Knight
+            'n': 5,  # Black Knight
             'B': 6,  # White Bishop
+            'b': 7,  # Black Bishop
             'Q': 8,  # White Queen
+            'q': 9,  # Black Queen
             'K': 10, # White King
+            'k': 11, # Black King
         }
         
         # Build the position string
         position_string = "v0;"
-        for x in range(self.width):
-            for y in range(self.height):
-                piece = self.board_state[x][y]
+        for y in range(self.height):
+            for x in range(self.width):
+                piece = self.board_state[y][x]
                 if piece in piece_to_id:
                     position_string += f"{piece_to_id[piece]},{x+self.min_x},{y+self.min_y};"
         
