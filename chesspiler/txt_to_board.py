@@ -28,12 +28,10 @@ PIECE_ID_TO_SYMBOL = {
     # Add more if needed
 }
 
-def parse_position_file(path):
-    with open(path, 'r') as f:
-        line = f.read().strip()
-    if not line.startswith('v0;'):
-        raise ValueError('File does not start with v0;')
-    entries = line[3:].split(';')
+def _parse_position_data(data):
+    if not data.startswith('v0;'):
+        raise ValueError('Data does not start with v0;')
+    entries = data[3:].split(';')
     pieces = []
     for entry in entries:
         if not entry:
@@ -50,26 +48,14 @@ def parse_position_file(path):
             continue
     return pieces
 
+def parse_position_file(path):
+    with open(path, 'r') as f:
+        data = f.read().strip()
+    return _parse_position_data(data)
+
 def parse_position_string(position_string):
-    line = position_string.strip()
-    if not line.startswith('v0;'):
-        raise ValueError('Position string does not start with v0;')
-    entries = line[3:].split(';')
-    pieces = []
-    for entry in entries:
-        if not entry:
-            continue
-        parts = entry.split(',')
-        if len(parts) != 3:
-            continue
-        try:
-            pid = int(parts[0])
-            x = int(parts[1])
-            y = int(parts[2])
-            pieces.append((pid, x, y))
-        except Exception:
-            continue
-    return pieces
+    data = position_string.strip()
+    return _parse_position_data(data)
 
 def get_bounds(pieces, min_x=None, max_x=None, min_y=None, max_y=None):
     xs = [x for _, x, _ in pieces]
