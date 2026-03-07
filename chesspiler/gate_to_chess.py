@@ -65,6 +65,22 @@ class LogicGate:
         output_coord = (x+1, y+2)
         return cls(x, y, len(position[0]), len(position), 'NAND', input_coords, output_coord, position)
 
+    @classmethod
+    def wire(cls, x, y):
+        width = len(nand_position[0])
+        assert width % 2 == 0
+        num_repeats = width // 4
+        extra_layer = (width // 2) % 2
+        
+        position = [
+            ['P', 'B', 'P', 'B'] * num_repeats + ['P', 'B'] * extra_layer,
+            ['P', '.', 'P', 'B'] * num_repeats + ['P', '.'] * extra_layer,
+            ['P', 'B', 'P', '.'] * num_repeats + ['P', 'B'] * extra_layer,
+            ['P', 'B', 'P', 'B'] * num_repeats + ['P', 'B'] * extra_layer,
+        ]
+        return cls(x, y, len(position[0]), len(position), 'WIRE', (x+1, y+1), (x+2-extra_layer), position)
+
+
     # @classmethod
     # def not_(cls, x, y, num_outputs):
     #     position = nand_position
@@ -86,7 +102,26 @@ class ChessCircuit:
         self.height = height
         self.board_state = [['.' for _ in range(self.width)] for _ in range(self.height)]  # board_state[y][x]
         self.gates = {}
+        self.add_wires()
         self.generate_circuit()
+
+    def add_wires(self):
+        # Adds wires to self.gate_layers, modifying in place. Should be idempotent.
+        wire_idx = 0
+        for i in range(len(self.gate_layers) - 1):
+            next_layer_ids = {g['id'] for g in self.gate_layers[i+1]}
+            for gate in self.gate_layers[i]:
+                for output_idx in range(len(gate['outputs'])):
+                    output = gate['outputs'][output_idx]
+                    if output not in next_layer_ids:
+                        wire_id = f'w{wire_idx}'
+                        self.gate_layers[i+1] += [{
+                            'id': wire_id,
+                            'inputs': [gate['id']],
+                            'outputs': [output]
+                        }]
+                        gate['outputs'][output_idx] = wire_id
+                        wire_idx += 1
     
     def generate_circuit(self):
         """Generate the complete circuit layout."""
@@ -96,6 +131,7 @@ class ChessCircuit:
         self.board_state = [['.' for _ in range(self.width)] for _ in range(self.height)]
         x_offset = 0
         for depth, layer in enumerate(self.gate_layers):
+            print(depth, layer)
             y_offset = self.height - 2
             for gate in layer:
                 assert y_offset >= 0, "y coordinate < 0, probably this means your circuit is too big and you should increase max height"
@@ -172,7 +208,7 @@ class ChessCircuit:
             f.write(position_string)
         
         print(f"Infinite chess position saved to {output_file}")
-        print(f"Position string: {position_string}")
+        # print(f"Position string: {position_string}")
 
 def main():
     """Main function for command line usage."""
@@ -186,21 +222,17 @@ def main():
         json_path = sys.argv[1]
         module_name = sys.argv[2] if len(sys.argv) > 2 else 'fn'
     
-    try:
-        # Create the circuit
-        circuit = ChessCircuit(json_path, module_name)
+    # Create the circuit
+    circuit = ChessCircuit(json_path, module_name)
+    
+    # Print information
+    circuit.print_board_state()
+    circuit.print_gate_summary()
+    
+    # Save to output file in infinite chess format
+    output_file = './output/fn_nand_chess.txt'
+    circuit.save_infinite_chess_format(output_file)
         
-        # Print information
-        circuit.print_board_state()
-        circuit.print_gate_summary()
-        
-        # Save to output file in infinite chess format
-        output_file = './output/fn_nand_chess.txt'
-        circuit.save_infinite_chess_format(output_file)
-        
-    except Exception as e:
-        print(f"Error: {e}")
-        sys.exit(1)
 
 if __name__ == "__main__":
     main() 
